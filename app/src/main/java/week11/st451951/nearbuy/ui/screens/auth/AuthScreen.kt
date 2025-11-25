@@ -1,6 +1,5 @@
 package week11.st451951.nearbuy.ui.screens.auth
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -52,37 +50,32 @@ import week11.st451951.nearbuy.ui.theme.BackgroundLight
 @Composable
 fun AuthScreen(
     authViewModel: AuthViewModel = viewModel(),
-    onLoginSuccess: () -> Unit,
-    onNavigateToLogin: () -> Unit
 ) {
-    val context = LocalContext.current
     val loginState by authViewModel.loginState.collectAsStateWithLifecycle()
     val registerState by authViewModel.registerState.collectAsStateWithLifecycle()
 
     var showRegisterDialog by remember { mutableStateOf(false) }
 
-    // Check if a user is already logged in
+    // #####################################
+    // AUTH CHECK
+    //
+    // If session exists, send user to app
+    // If not signed in, send to auth screen
+    // #####################################
     LaunchedEffect(Unit) {
         authViewModel.checkAuthAndNavigate()
     }
 
-    // Handle auth events
+    // ###################
+    // HANDLER
+    //
+    // Handles auth events
+    // ###################
     LaunchedEffect(Unit) {
         authViewModel.authEvents.collectLatest { event ->
-            when (event) {
-                is AuthEvent.ShowToast -> {
-                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
-                }
-                is AuthEvent.NavigateToMain -> {
-                    onLoginSuccess()
-                }
-                is AuthEvent.NavigateToLogin -> {
-                    onNavigateToLogin()
-                }
-                is AuthEvent.RegistrationSuccess -> {
-                    showRegisterDialog = false
-                    authViewModel.updateLoginEmail(event.email)
-                }
+            if (event is AuthEvent.RegistrationSuccess) {
+                showRegisterDialog = false
+                authViewModel.updateLoginEmail(event.email)
             }
         }
     }

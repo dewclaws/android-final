@@ -6,7 +6,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -74,26 +73,16 @@ val bottomNavItems = listOf(
 fun NearBuyNavGraph(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Auth.route,
-    authViewModel: AuthViewModel = viewModel()
+    authViewModel: AuthViewModel = viewModel(),
+    drawerState: DrawerState? = null
 ) {
-    val context = LocalContext.current
 
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
         composable(Screen.Auth.route) {
-            AuthScreen(
-                authViewModel = authViewModel,
-                onLoginSuccess = {
-                    navController.navigate(Screen.Buy.route) {
-                        popUpTo(Screen.Auth.route) { inclusive = true }
-                    }
-                },
-                onNavigateToLogin = {
-                    // Already on login screen
-                }
-            )
+            AuthScreen(authViewModel = authViewModel)
         }
 
         // ###############################
@@ -107,7 +96,11 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                BuyScreen()
+                if (drawerState != null) {
+                    BuyScreen(
+                        drawerState = drawerState
+                    )
+                }
             }
         }
 
@@ -116,7 +109,11 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                SellScreen()
+                if (drawerState != null) {
+                    SellScreen(
+                        drawerState = drawerState
+                    )
+                }
             }
         }
 
@@ -125,7 +122,11 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                ChatScreen()
+                if (drawerState != null) {
+                    ChatScreen(
+                        drawerState = drawerState
+                    )
+                }
             }
         }
     }
@@ -158,7 +159,6 @@ fun AuthGuard(
 @Composable
 fun MainScaffold(
     navController: NavHostController,
-    authViewModel: AuthViewModel = viewModel(),
     content: @Composable (Modifier) -> Unit
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()

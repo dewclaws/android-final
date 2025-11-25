@@ -11,22 +11,26 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 @Composable
 fun SectionHeader(
     title: String,
-    modifier: Modifier = Modifier,
-    onLeadingIconClick: () -> Unit = {},
-    onTrailingIconClick: () -> Unit = {}
+    drawerState: DrawerState,
+    modifier: Modifier = Modifier
 ) {
+    val scope = rememberCoroutineScope()
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -48,7 +52,11 @@ fun SectionHeader(
             // PROFILE BUTTON
             // ##############
             IconButton(
-                onClick = onLeadingIconClick,
+                onClick = {
+                    scope.launch {
+                        drawerState.open()
+                    }
+                },
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(
@@ -63,7 +71,7 @@ fun SectionHeader(
             // SETTINGS BUTTON
             // ###############
             IconButton(
-                onClick = onTrailingIconClick,
+                onClick = { /* TODO: Settings button functionality */ },
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(

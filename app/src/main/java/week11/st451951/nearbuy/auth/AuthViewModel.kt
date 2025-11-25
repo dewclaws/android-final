@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Login state, handles inputs, validation, and loading status
+ */
 data class LoginUIState(
     val email: String = "",
     val password: String = "",
@@ -18,6 +21,9 @@ data class LoginUIState(
     val isLoading: Boolean = false
 )
 
+/**
+ * Registration state, handles inputs, validation, and loading status
+ */
 data class RegisterUIState(
     val name: String = "",
     val email: String = "",
@@ -30,6 +36,9 @@ data class RegisterUIState(
     val isLoading: Boolean = false
 )
 
+/**
+ * Authentication events that are handled by UI when fired
+ */
 sealed class AuthEvent {
     data class ShowToast(val message: String) : AuthEvent()
     object NavigateToMain : AuthEvent()
@@ -37,6 +46,11 @@ sealed class AuthEvent {
     data class RegistrationSuccess(val email: String) : AuthEvent()
 }
 
+/**
+ * Authentication view model
+ *
+ * Backend responsible for auth functions such as logging in/out, registration, etc
+ */
 class AuthViewModel(
     private val repository: AuthRepository = AuthRepository()
 ) : ViewModel() {
@@ -90,6 +104,10 @@ class AuthViewModel(
         _registerState.value = RegisterUIState()
     }
 
+    fun resetLoginState() {
+        _loginState.value = LoginUIState()
+    }
+
     // ##########
     // VALIDATORS
     // ##########
@@ -136,6 +154,9 @@ class AuthViewModel(
                 .onSuccess {
                     _authEvents.emit(AuthEvent.ShowToast("You are now signed in"))
                     _authEvents.emit(AuthEvent.NavigateToMain)
+
+                    // Reset the login form so inputs aren't populated after logging out
+                    resetLoginState()
                 }
                 .onFailure { e ->
                     _authEvents.emit(AuthEvent.ShowToast(e.message ?: "Sign in failed"))
@@ -172,7 +193,7 @@ class AuthViewModel(
             hasError = true
         }
 
-        // Validate confirm password
+        // Validate password confirmation
         if (state.password != state.confirmPassword) {
             _registerState.value = _registerState.value.copy(
                 confirmPasswordError = "Passwords do not match"
@@ -242,12 +263,21 @@ class AuthViewModel(
         }
     }
 
-    fun requireAuth() {
+    // ########
+    // SIGN OUT
+    // ########
+    fun signOut() {
+        repository.signOut()
         viewModelScope.launch {
-            if (!isLoggedIn) {
-                _authEvents.emit(AuthEvent.ShowToast("Please sign in to continue"))
-                _authEvents.emit(AuthEvent.NavigateToLogin)
-            }
+            _authEvents.emit(AuthEvent.ShowToast("You have been signed out"))
+            _authEvents.emit(AuthEvent.NavigateToLogin)
         }
+    }
+
+    // #######################
+    // GET CURRENT USER'S NAME
+    // #######################
+    fun getCurrentUserName(): String {
+        return repository.currentUser?.displayName ?: "User"
     }
 }

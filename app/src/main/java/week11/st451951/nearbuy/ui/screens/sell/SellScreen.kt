@@ -9,14 +9,13 @@ import androidx.compose.ui.unit.dp
 import week11.st451951.nearbuy.ui.components.SectionHeader
 
 @Composable
-fun SellScreen() {
+fun SellScreen(drawerState: DrawerState) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
         SectionHeader(
             title = "Sell",
-            onLeadingIconClick = { /* TODO: Handle account click */ },
-            onTrailingIconClick = { /* TODO: Handle settings click */ }
+            drawerState = drawerState
         )
 
         Box(
