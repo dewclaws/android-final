@@ -10,6 +10,7 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,6 +25,7 @@ import week11.st451951.nearbuy.auth.AuthViewModel
 import week11.st451951.nearbuy.navigation.MainScaffold
 import week11.st451951.nearbuy.navigation.NearBuyNavGraph
 import week11.st451951.nearbuy.navigation.Screen
+import week11.st451951.nearbuy.ui.components.LocalDrawerState
 import week11.st451951.nearbuy.ui.components.ProfileDrawer
 import week11.st451951.nearbuy.ui.theme.NearBuyTheme
 
@@ -79,52 +81,38 @@ class MainActivity : ComponentActivity() {
 
                 Surface(modifier = Modifier.fillMaxSize()) {
                     if (showDrawer) {
-                        ModalNavigationDrawer(
-                            drawerState = drawerState,
-                            drawerContent = {
-                                ProfileDrawer(
-                                    authViewModel = authViewModel,
-                                    onLogout = {
-                                        scope.launch {
-                                            drawerState.close()
-                                            authViewModel.signOut()
+                        CompositionLocalProvider(LocalDrawerState provides drawerState) {
+                            ModalNavigationDrawer(
+                                drawerState = drawerState,
+                                drawerContent = {
+                                    ProfileDrawer(
+                                        authViewModel = authViewModel,
+                                        onLogout = {
+                                            scope.launch {
+                                                drawerState.close()
+                                                authViewModel.signOut()
+                                            }
                                         }
-                                    }
-                                )
-                            }
-                        ) {
-                            MainScaffold(
-                                navController = navController
-                            ) { modifier ->
-                                NearBuyNavGraph(
-                                    navController = navController,
-                                    startDestination = startDestination,
-                                    authViewModel = authViewModel,
-                                    drawerState = drawerState
-                                )
+                                    )
+                                }
+                            ) {
+                                MainScaffold(
+                                    navController = navController
+                                ) { modifier ->
+                                    NearBuyNavGraph(
+                                        navController = navController,
+                                        startDestination = startDestination,
+                                        authViewModel = authViewModel
+                                    )
+                                }
                             }
                         }
                     } else {
-                        if (currentRoute == Screen.Auth.route || currentRoute == null) {
-                            // Full screen login without scaffold
-                            NearBuyNavGraph(
-                                navController = navController,
-                                startDestination = startDestination,
-                                authViewModel = authViewModel,
-                                drawerState = null
-                            )
-                        } else {
-                            MainScaffold(
-                                navController = navController
-                            ) { modifier ->
-                                NearBuyNavGraph(
-                                    navController = navController,
-                                    startDestination = startDestination,
-                                    authViewModel = authViewModel,
-                                    drawerState = null
-                                )
-                            }
-                        }
+                        NearBuyNavGraph(
+                            navController = navController,
+                            startDestination = startDestination,
+                            authViewModel = authViewModel
+                        )
                     }
                 }
             }

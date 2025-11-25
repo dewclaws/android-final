@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DrawerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,13 +13,12 @@ import androidx.compose.ui.unit.dp
 import week11.st451951.nearbuy.ui.components.SectionHeader
 
 @Composable
-fun BuyScreen(drawerState: DrawerState) {
+fun BuyScreen() {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
         SectionHeader(
-            title = "Browse",
-            drawerState = drawerState
+            title = "Browse"
         )
 
         Box(

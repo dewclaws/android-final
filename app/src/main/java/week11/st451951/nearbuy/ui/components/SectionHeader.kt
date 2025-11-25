@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.DrawerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,9 +25,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun SectionHeader(
     title: String,
-    drawerState: DrawerState,
     modifier: Modifier = Modifier
 ) {
+    val drawerState = LocalDrawerState.current
     val scope = rememberCoroutineScope()
 
     Column(
@@ -53,8 +52,10 @@ fun SectionHeader(
             // ##############
             IconButton(
                 onClick = {
-                    scope.launch {
-                        drawerState.open()
+                    drawerState?.let {
+                        scope.launch {
+                            it.open()
+                        }
                     }
                 },
                 modifier = Modifier.size(48.dp)

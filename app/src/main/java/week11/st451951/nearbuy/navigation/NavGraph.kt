@@ -73,8 +73,7 @@ val bottomNavItems = listOf(
 fun NearBuyNavGraph(
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.Auth.route,
-    authViewModel: AuthViewModel = viewModel(),
-    drawerState: DrawerState? = null
+    authViewModel: AuthViewModel = viewModel()
 ) {
 
     NavHost(
@@ -96,11 +95,7 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                if (drawerState != null) {
-                    BuyScreen(
-                        drawerState = drawerState
-                    )
-                }
+                BuyScreen()
             }
         }
 
@@ -109,11 +104,7 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                if (drawerState != null) {
-                    SellScreen(
-                        drawerState = drawerState
-                    )
-                }
+                SellScreen()
             }
         }
 
@@ -122,11 +113,7 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                if (drawerState != null) {
-                    ChatScreen(
-                        drawerState = drawerState
-                    )
-                }
+                ChatScreen()
             }
         }
     }
