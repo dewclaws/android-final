@@ -1,36 +1,33 @@
 package week11.st451951.nearbuy.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     onPrimary = Color.White,
-    primaryContainer = PurpleContainer,
-    onPrimaryContainer = OnPurple,
+    primaryContainer = PrimaryContainer,
+    onPrimaryContainer = OnPrimaryContainer,
     secondary = PurpleGrey40,
     onSecondary = Color.White,
-    secondaryContainer = PurplePrimary,
-    onSecondaryContainer = OnPurple,
-    surface = SurfaceColor,
-    onSurface = OnPurple,
-    background = BackgroundLight,
-    onBackground = OnPurple,
-    outline = OutlineColor,
-    surfaceVariant = PurpleLight
+    secondaryContainer = SecondaryContainer,
+    onSecondaryContainer = OnSecondaryContainer,
+    surface = Surface,
+    onSurface = OnSurface,
+    onSurfaceVariant = OnSurfaceVariant,
+    background = Surface,
+    onBackground = OnSurface,
+    outline = Outline,
+    outlineVariant = OutlineVariant,
+    surfaceVariant = Surface
 )
 
 
@@ -50,8 +47,6 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun NearBuyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
 //    val colorScheme = when {
