@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -12,14 +13,14 @@ import kotlinx.coroutines.tasks.await
 class ListingsRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val storage = FirebaseStorage.getInstance()
     private val listingsCollection = firestore.collection("listings")
 
     /**
-     * Get all active listings ordered by creation date (newest first)
+     * Get all listings ordered by creation date (newest first)
      */
     fun getAllListings(): Flow<List<Listing>> = callbackFlow {
         val listener = listingsCollection
-            .whereEqualTo("active", true)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -49,7 +50,6 @@ class ListingsRepository {
 
         val listener = listingsCollection
             .whereEqualTo("sellerId", userId)
-            .whereEqualTo("active", true)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -105,8 +105,7 @@ class ListingsRepository {
                 imageUrls = imageUrls,
                 sellerId = userId,
                 createdAt = Timestamp.now(),
-                updatedAt = Timestamp.now(),
-                active = true
+                updatedAt = Timestamp.now()
             )
 
             val documentRef = listingsCollection.add(listing).await()
@@ -143,13 +142,28 @@ class ListingsRepository {
     }
 
     /**
-     * Delete a listing (soft delete by setting active to false)
+     * Delete a listing and its associated images from Firebase Storage
      */
     suspend fun deleteListing(listingId: String): Result<Unit> {
         return try {
-            listingsCollection.document(listingId)
-                .update("active", false, "updatedAt", Timestamp.now())
-                .await()
+            // Get the listing to retrieve image URLs
+            val document = listingsCollection.document(listingId).get().await()
+            val listing = document.toObject(Listing::class.java)
+
+            // Delete all associated images from Storage
+            listing?.imageUrls?.forEach { imageUrl ->
+                try {
+                    val storageRef = storage.getReferenceFromUrl(imageUrl)
+                    storageRef.delete().await()
+                } catch (e: Exception) {
+                    // Log but don't fail if image deletion fails,
+                    // because it's not the end of the world
+                    android.util.Log.w("ListingsRepository", "Failed to delete image: $imageUrl", e)
+                }
+            }
+
+            // Delete the Firestore document
+            listingsCollection.document(listingId).delete().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

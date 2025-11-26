@@ -6,8 +6,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,8 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 import week11.st451951.nearbuy.data.Listing
 import week11.st451951.nearbuy.data.ListingsRepository
 import java.text.SimpleDateFormat
@@ -29,9 +34,17 @@ fun ListingDetailScreen(
     onNavigateBack: () -> Unit,
     onEditListing: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val repository = remember { ListingsRepository() }
+    val auth = remember { FirebaseAuth.getInstance() }
+
     var listing by remember { mutableStateOf<Listing?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+
+    val isOwner = listing?.sellerId == auth.currentUser?.uid
 
     LaunchedEffect(listingId) {
         val result = repository.getListing(listingId)
@@ -52,11 +65,21 @@ fun ListingDetailScreen(
                             contentDescription = "Back"
                         )
                     }
+                },
+                actions = {
+                    if (isOwner && listing != null) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete listing"
+                            )
+                        }
+                    }
                 }
             )
         },
         floatingActionButton = {
-            listing?.let {
+            if (isOwner && listing != null) {
                 FloatingActionButton(
                     onClick = { onEditListing(listingId) },
                     modifier = Modifier.padding(bottom = 96.dp, end = 16.dp),
@@ -71,6 +94,57 @@ fun ListingDetailScreen(
             }
         }
     ) { paddingValues ->
+        // #####################
+        // CONFIRM DELETE DIALOG
+        // #####################
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
+                title = { Text("Delete Listing") },
+                text = { Text("This listing will be permanently deleted. Are you sure you want to delete it?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            isDeleting = true
+                            scope.launch {
+                                val result = repository.deleteListing(listingId)
+                                isDeleting = false
+                                if (result.isSuccess) {
+                                    Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
+                                    onNavigateBack()
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to delete listing: ${result.exceptionOrNull()?.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    showDeleteDialog = false
+                                }
+                            }
+                        },
+                        enabled = !isDeleting
+                    ) {
+                        if (isDeleting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Delete")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDeleteDialog = false },
+                        enabled = !isDeleting
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
         if (isLoading) {
             Box(
                 modifier = Modifier

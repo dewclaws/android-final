@@ -12,6 +12,5 @@ data class Listing(
     val imageUrls: List<String> = emptyList(),
     val sellerId: String = "",
     val createdAt: Timestamp = Timestamp.now(),
-    val updatedAt: Timestamp = Timestamp.now(),
-    val active: Boolean = true
+    val updatedAt: Timestamp = Timestamp.now()
 )
