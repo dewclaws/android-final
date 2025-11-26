@@ -34,6 +34,7 @@ import week11.st451951.nearbuy.ui.screens.auth.AuthScreen
 import week11.st451951.nearbuy.ui.screens.buy.BuyScreen
 import week11.st451951.nearbuy.ui.screens.chat.ChatScreen
 import week11.st451951.nearbuy.ui.screens.sell.CreateListingScreen
+import week11.st451951.nearbuy.ui.screens.sell.EditListingScreen
 import week11.st451951.nearbuy.ui.screens.sell.ListingDetailScreen
 import week11.st451951.nearbuy.ui.screens.sell.SellScreen
 
@@ -172,13 +173,22 @@ fun NearBuyNavGraph(
             route = Screen.EditListing.route,
             arguments = listOf(navArgument("listingId") { type = NavType.StringType })
         ) { backStackEntry ->
-            backStackEntry.arguments?.getString("listingId") ?: return@composable
+            val listingId = backStackEntry.arguments?.getString("listingId") ?: return@composable
             AuthGuard(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                // For now, navigate back - TODO: Edit listing functionality
-                navController.popBackStack()
+                EditListingScreen(
+                    listingId = listingId,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onListingUpdated = { updatedListingId ->
+                        navController.navigate(Screen.ListingDetail.createRoute(updatedListingId)) {
+                            popUpTo(Screen.ListingDetail.createRoute(updatedListingId)) { inclusive = true }
+                        }
+                    }
+                )
             }
         }
 
