@@ -13,5 +13,5 @@ data class Listing(
     val sellerId: String = "",
     val createdAt: Timestamp = Timestamp.now(),
     val updatedAt: Timestamp = Timestamp.now(),
-    val isActive: Boolean = true
+    val active: Boolean = true
 )

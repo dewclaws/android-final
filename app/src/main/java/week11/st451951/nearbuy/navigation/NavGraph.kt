@@ -9,7 +9,11 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,17 +21,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import week11.st451951.nearbuy.auth.AuthViewModel
-import week11.st451951.nearbuy.ui.screens.chat.ChatScreen
 import week11.st451951.nearbuy.ui.screens.auth.AuthScreen
 import week11.st451951.nearbuy.ui.screens.buy.BuyScreen
+import week11.st451951.nearbuy.ui.screens.chat.ChatScreen
+import week11.st451951.nearbuy.ui.screens.sell.CreateListingScreen
+import week11.st451951.nearbuy.ui.screens.sell.ListingDetailScreen
 import week11.st451951.nearbuy.ui.screens.sell.SellScreen
 
 // Routes
@@ -36,6 +43,13 @@ sealed class Screen(val route: String) {
     object Buy : Screen("buy")
     object Sell : Screen("sell")
     object Chat : Screen("chat")
+    object CreateListing : Screen("sell/create_listing")
+    object ListingDetail : Screen("sell/listing/{listingId}") {
+        fun createRoute(listingId: String) = "sell/listing/$listingId"
+    }
+    object EditListing : Screen("sell/edit/{listingId}") {
+        fun createRoute(listingId: String) = "sell/edit/$listingId"
+    }
 }
 
 // Bottom nav menu item class
@@ -104,7 +118,67 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                SellScreen()
+                SellScreen(
+                    onNavigateToCreateListing = {
+                        navController.navigate(Screen.CreateListing.route)
+                    },
+                    onListingClick = { listingId ->
+                        navController.navigate(Screen.ListingDetail.createRoute(listingId))
+                    }
+                )
+            }
+        }
+
+        composable(Screen.CreateListing.route) {
+            AuthGuard(
+                authViewModel = authViewModel,
+                navController = navController
+            ) {
+                CreateListingScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onListingCreated = { listingId ->
+                        navController.navigate(Screen.ListingDetail.createRoute(listingId)) {
+                            popUpTo(Screen.Sell.route)
+                        }
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = Screen.ListingDetail.route,
+            arguments = listOf(navArgument("listingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val listingId = backStackEntry.arguments?.getString("listingId") ?: return@composable
+            AuthGuard(
+                authViewModel = authViewModel,
+                navController = navController
+            ) {
+                ListingDetailScreen(
+                    listingId = listingId,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onEditListing = { editListingId ->
+                        navController.navigate(Screen.EditListing.createRoute(editListingId))
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = Screen.EditListing.route,
+            arguments = listOf(navArgument("listingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            backStackEntry.arguments?.getString("listingId") ?: return@composable
+            AuthGuard(
+                authViewModel = authViewModel,
+                navController = navController
+            ) {
+                // For now, navigate back - TODO: Edit listing functionality
+                navController.popBackStack()
             }
         }
 
@@ -161,9 +235,8 @@ fun MainScaffold(
                     // Render nav buttons
                     // Runs for each button
                     bottomNavItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy?.any {
-                            it.route == item.screen.route
-                        } == true
+                        // Check if current route belongs to this tab's navigation stack
+                        val selected = currentDestination?.route?.startsWith(item.screen.route) == true
 
                         NavigationBarItem(
                             icon = {
@@ -175,12 +248,21 @@ fun MainScaffold(
                             label = { Text(item.title) },
                             selected = selected,
                             onClick = {
-                                navController.navigate(item.screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                                // If already on this tab, pop to its root
+                                if (selected) {
+                                    navController.popBackStack(item.screen.route, inclusive = false)
+                                } else {
+                                    // Navigate to the tab
+                                    navController.navigate(item.screen.route) {
+                                        // Pop up to the start destination to avoid building up a large stack
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        // Avoid multiple copies of the same destination
+                                        launchSingleTop = true
+                                        // Restore state when navigating between segments
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
                             }
                         )

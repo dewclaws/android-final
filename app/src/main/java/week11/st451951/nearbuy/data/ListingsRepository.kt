@@ -19,7 +19,7 @@ class ListingsRepository {
      */
     fun getAllListings(): Flow<List<Listing>> = callbackFlow {
         val listener = listingsCollection
-            .whereEqualTo("isActive", true)
+            .whereEqualTo("active", true)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -49,7 +49,7 @@ class ListingsRepository {
 
         val listener = listingsCollection
             .whereEqualTo("sellerId", userId)
-            .whereEqualTo("isActive", true)
+            .whereEqualTo("active", true)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -106,7 +106,7 @@ class ListingsRepository {
                 sellerId = userId,
                 createdAt = Timestamp.now(),
                 updatedAt = Timestamp.now(),
-                isActive = true
+                active = true
             )
 
             val documentRef = listingsCollection.add(listing).await()
@@ -143,12 +143,12 @@ class ListingsRepository {
     }
 
     /**
-     * Delete a listing (soft delete by setting isActive to false)
+     * Delete a listing (soft delete by setting active to false)
      */
     suspend fun deleteListing(listingId: String): Result<Unit> {
         return try {
             listingsCollection.document(listingId)
-                .update("isActive", false, "updatedAt", Timestamp.now())
+                .update("active", false, "updatedAt", Timestamp.now())
                 .await()
             Result.success(Unit)
         } catch (e: Exception) {
