@@ -77,7 +77,7 @@ fun SellScreen(
             onClick = onNavigateToCreateListing,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 128.dp, end = 16.dp),
+                .padding(bottom = 146.dp, end = 32.dp),
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         ) {

@@ -145,7 +145,7 @@ fun CreateListingScreen(
             if (!isLoading) {
                 FloatingActionButton(
                     onClick = { validateAndCreateListing() },
-                    modifier = Modifier.padding(bottom = 128.dp, end = 16.dp),
+                    modifier = Modifier.padding(bottom = 112.dp, end = 16.dp),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ) {
@@ -174,35 +174,34 @@ fun CreateListingScreen(
                 //
                 ImageGrid(
                     images = selectedImages,
-                    onAddImage = { imagePickerLauncher.launch("image/*") },
-                    onRemoveImage = { index ->
-                        selectedImages = selectedImages.filterIndexed { i, _ -> i != index }
-                    }
+                    onAddImage = { imagePickerLauncher.launch("image/*") }
                 )
 
-                // ###########
-                // TITLE INPUT
-                // ###########
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Title") },
+                // ######################
+                // TITLE AND PRICE INPUTS
+                // ######################
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Title") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
 
-                // ###########
-                // PRICE INPUT
-                // ###########
-                OutlinedTextField(
-                    value = priceText,
-                    onValueChange = { priceText = it },
-                    label = { Text("Price") },
-                    leadingIcon = { Text("$") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
-                )
+                    OutlinedTextField(
+                        value = priceText,
+                        onValueChange = { priceText = it },
+                        label = { Text("Price") },
+                        leadingIcon = { Text("$") },
+                        modifier = Modifier.width(120.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true
+                    )
+                }
 
                 // #################
                 // DESCRIPTION INPUT
@@ -235,8 +234,7 @@ fun CreateListingScreen(
 @Composable
 private fun ImageGrid(
     images: List<Uri>,
-    onAddImage: () -> Unit,
-    onRemoveImage: (Int) -> Unit
+    onAddImage: () -> Unit
 ) {
     when (images.size) {
         0 -> {
@@ -266,8 +264,7 @@ private fun ImageGrid(
                     uri = images[0],
                     modifier = Modifier
                         .weight(1f)
-                        .height(120.dp),
-                    onRemove = { onRemoveImage(0) }
+                        .height(120.dp)
                 )
                 AddImagePlaceholder(
                     modifier = Modifier
@@ -294,15 +291,13 @@ private fun ImageGrid(
                         uri = images[0],
                         modifier = Modifier
                             .weight(1f)
-                            .height(120.dp),
-                        onRemove = { onRemoveImage(0) }
+                            .height(120.dp)
                     )
                     ImageThumbnail(
                         uri = images[1],
                         modifier = Modifier
                             .weight(1f)
-                            .height(120.dp),
-                        onRemove = { onRemoveImage(1) }
+                            .height(120.dp)
                     )
                 }
                 Row(
@@ -314,8 +309,7 @@ private fun ImageGrid(
                             uri = images[2],
                             modifier = Modifier
                                 .weight(1f)
-                                .height(120.dp),
-                            onRemove = { onRemoveImage(2) }
+                                .height(120.dp)
                         )
                     }
                     if (images.size < 4) {
@@ -346,15 +340,13 @@ private fun ImageGrid(
                         uri = images[0],
                         modifier = Modifier
                             .weight(1f)
-                            .height(120.dp),
-                        onRemove = { onRemoveImage(0) }
+                            .height(120.dp)
                     )
                     ImageThumbnail(
                         uri = images[1],
                         modifier = Modifier
                             .weight(1f)
-                            .height(120.dp),
-                        onRemove = { onRemoveImage(1) }
+                            .height(120.dp)
                     )
                 }
                 Row(
@@ -365,15 +357,13 @@ private fun ImageGrid(
                         uri = images[2],
                         modifier = Modifier
                             .weight(1f)
-                            .height(120.dp),
-                        onRemove = { onRemoveImage(2) }
+                            .height(120.dp)
                     )
                     ImageThumbnail(
                         uri = images[3],
                         modifier = Modifier
                             .weight(1f)
-                            .height(120.dp),
-                        onRemove = { onRemoveImage(3) }
+                            .height(120.dp)
                     )
                 }
             }
@@ -410,8 +400,7 @@ private fun AddImagePlaceholder(
 @Composable
 private fun ImageThumbnail(
     uri: Uri,
-    modifier: Modifier = Modifier,
-    onRemove: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
