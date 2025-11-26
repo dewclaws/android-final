@@ -26,6 +26,7 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 firebase-auth-ktx = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore-ktx = { module = "com.google.firebase:firebase-firestore" }
+firebase-storage-ktx = { module = "com.google.firebase:firebase-storage" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
