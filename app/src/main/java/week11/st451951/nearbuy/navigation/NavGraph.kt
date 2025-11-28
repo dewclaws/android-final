@@ -23,14 +23,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.navigation.NavType
 import week11.st451951.nearbuy.auth.AuthViewModel
 import week11.st451951.nearbuy.ui.screens.auth.AuthScreen
+import week11.st451951.nearbuy.ui.screens.buy.BuyListingDetailScreen
 import week11.st451951.nearbuy.ui.screens.buy.BuyScreen
 import week11.st451951.nearbuy.ui.screens.chat.ChatScreen
 import week11.st451951.nearbuy.ui.screens.sell.CreateListingScreen
@@ -50,6 +51,9 @@ sealed class Screen(val route: String) {
     }
     object EditListing : Screen("sell/edit/{listingId}") {
         fun createRoute(listingId: String) = "sell/edit/$listingId"
+    }
+    object BuyListingDetail : Screen("buy/listing/{listingId}") {
+        fun createRoute(listingId: String) = "buy/listing/$listingId"
     }
 }
 
@@ -110,7 +114,29 @@ fun NearBuyNavGraph(
                 authViewModel = authViewModel,
                 navController = navController
             ) {
-                BuyScreen()
+                BuyScreen(
+                    onListingClick = { listingId ->
+                        navController.navigate(Screen.BuyListingDetail.createRoute(listingId))
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = Screen.BuyListingDetail.route,
+            arguments = listOf(navArgument("listingId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val listingId = backStackEntry.arguments?.getString("listingId") ?: return@composable
+            AuthGuard(
+                authViewModel = authViewModel,
+                navController = navController
+            ) {
+                BuyListingDetailScreen(
+                    listingId = listingId,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
             }
         }
 
@@ -242,10 +268,7 @@ fun MainScaffold(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
-                    // Render nav buttons
-                    // Runs for each button
                     bottomNavItems.forEach { item ->
-                        // Check if current route belongs to this tab's navigation stack
                         val selected = currentDestination?.route?.startsWith(item.screen.route) == true
 
                         NavigationBarItem(
@@ -258,19 +281,14 @@ fun MainScaffold(
                             label = { Text(item.title) },
                             selected = selected,
                             onClick = {
-                                // If already on this tab, pop to its root
                                 if (selected) {
                                     navController.popBackStack(item.screen.route, inclusive = false)
                                 } else {
-                                    // Navigate to the tab
                                     navController.navigate(item.screen.route) {
-                                        // Pop up to the start destination to avoid building up a large stack
                                         popUpTo(navController.graph.findStartDestination().id) {
                                             saveState = true
                                         }
-                                        // Avoid multiple copies of the same destination
                                         launchSingleTop = true
-                                        // Restore state when navigating between segments
                                         restoreState = true
                                     }
                                 }
