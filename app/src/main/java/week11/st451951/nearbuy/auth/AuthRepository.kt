@@ -4,6 +4,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.tasks.await
+import week11.st451951.nearbuy.data.UsersRepository
 
 /**
  * Handles backend authentication tasks such as
@@ -45,6 +46,22 @@ class AuthRepository {
                     .build()
 
                 user.updateProfile(profileUpdates).await()
+
+                // Save user to Firestore
+                val usersRepository = UsersRepository()
+                val saveResult = usersRepository.saveUser(
+                    userId = user.uid,
+                    displayName = name,
+                    email = email
+                )
+
+                // Log the result
+                if (saveResult.isSuccess) {
+                    android.util.Log.d("AuthRepository", "User saved to Firestore successfully")
+                } else {
+                    android.util.Log.e("AuthRepository", "Failed to save user: ${saveResult.exceptionOrNull()?.message}")
+                }
+
                 Result.success(user)
             } ?: Result.failure(Exception("Registration failed"))
         } catch (e: Exception) {

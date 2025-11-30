@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import week11.st451951.nearbuy.data.Listing
 import week11.st451951.nearbuy.data.ListingsRepository
+import week11.st451951.nearbuy.data.UsersRepository
 import week11.st451951.nearbuy.ui.components.formatTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,15 +54,26 @@ fun BuyListingDetailScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val repository = remember { ListingsRepository() }
+    val listingsRepository = remember { ListingsRepository() }
+    val usersRepository = remember { UsersRepository() }
 
     var listing by remember { mutableStateOf<Listing?>(null) }
+    var sellerName by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(listingId) {
-        val result = repository.getListing(listingId)
-        if (result.isSuccess) {
-            listing = result.getOrNull()
+        // Fetch the listing
+        val listingResult = listingsRepository.getListing(listingId)
+        if (listingResult.isSuccess) {
+            listing = listingResult.getOrNull()
+
+            // Fetch the seller's name
+            listing?.sellerId?.let { sellerId ->
+                val userResult = usersRepository.getUser(sellerId)
+                if (userResult.isSuccess) {
+                    sellerName = userResult.getOrNull()?.displayName
+                }
+            }
         }
         isLoading = false
     }
@@ -135,21 +148,66 @@ fun BuyListingDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Title
-                    Text(
-                        text = listing!!.title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    // Title and Contact Button Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            // Title
+                            Text(
+                                text = listing!!.title,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
 
-                    // Price
-                    Text(
-                        text = "$${listing!!.price.toInt()}",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                            // Price
+                            Text(
+                                text = "$${listing!!.price.toInt()}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            // Seller Name
+                            sellerName?.let { name ->
+                                Text(
+                                    text = "For sale by $name",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Contact Seller Button
+                        Button(
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    "Contact seller feature coming soon!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Email,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text("Contact Seller")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Timestamp
                     Text(
@@ -166,32 +224,6 @@ fun BuyListingDetailScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Contact Seller Button
-                    Button(
-                        onClick = {
-                            Toast.makeText(
-                                context,
-                                "Contact seller feature coming soon!",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Email,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text("Contact Seller")
-                    }
 
                     Spacer(modifier = Modifier.height(80.dp))
                 }

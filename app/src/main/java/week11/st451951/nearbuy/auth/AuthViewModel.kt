@@ -3,6 +3,7 @@ package week11.st451951.nearbuy.auth
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 /**
  * Login state, handles inputs, validation, and loading status
  */
+private val firestore = FirebaseFirestore.getInstance()
 data class LoginUIState(
     val email: String = "",
     val password: String = "",
