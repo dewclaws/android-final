@@ -69,18 +69,17 @@ fun BuyScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Recent Listings",
                 style = MaterialTheme.typography.titleMedium
             )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "View all",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+//            Icon(
+//                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+//                contentDescription = "View all",
+//                tint = MaterialTheme.colorScheme.onSurfaceVariant
+//            )
         }
 
         // Listings list
