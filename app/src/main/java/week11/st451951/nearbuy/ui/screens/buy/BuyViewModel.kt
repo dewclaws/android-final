@@ -18,7 +18,8 @@ import week11.st451951.nearbuy.data.LocationManager
  * Buy screen UI state
  */
 data class BuyUIState(
-    val listings: List<Listing> = emptyList(),
+    val allListings: List<Listing> = emptyList(),
+    val filteredListings: List<Listing> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
     val selectedCategory: Category? = null,
@@ -34,8 +35,6 @@ sealed class BuyEvent {
 
 /**
  * ViewModel for BuyScreen
- *
- * Handles fetching and displaying all available listings sorted by distance
  */
 class BuyViewModel(
     private val repository: ListingsRepository = ListingsRepository(),
@@ -59,9 +58,13 @@ class BuyViewModel(
         }
 
         viewModelScope.launch {
-            val result = locationManager.getCurrentLocation()
-            if (result.isSuccess) {
-                _uiState.value = _uiState.value.copy(userLocation = result.getOrNull())
+            try {
+                val result = locationManager.getCurrentLocation()
+                if (result.isSuccess) {
+                    _uiState.value = _uiState.value.copy(userLocation = result.getOrNull())
+                }
+            } catch (_: SecurityException) {
+                // Permission was revoked, ignore silently
             }
         }
     }
@@ -74,7 +77,8 @@ class BuyViewModel(
                 repository.getAllListings().collect { listings ->
                     val sortedListings = sortListingsByDistance(listings)
                     _uiState.value = _uiState.value.copy(
-                        listings = sortedListings,
+                        allListings = sortedListings,
+                        filteredListings = filterListings(sortedListings, _uiState.value.selectedCategory),
                         isLoading = false,
                         error = null
                     )
@@ -101,14 +105,36 @@ class BuyViewModel(
                     listing.location.longitude
                 )
             } else {
-                Double.MAX_VALUE // Put listings without location at the end
+                Double.MAX_VALUE
             }
         }
     }
 
-    fun selectCategory(category: Category) {
-        _uiState.value = _uiState.value.copy(selectedCategory = category)
-        // TODO: Filter listings by category
+    private fun filterListings(listings: List<Listing>, category: Category?): List<Listing> {
+        return if (category == null) {
+            listings
+        } else {
+            listings.filter { it.category.equals(category.displayName, ignoreCase = true) }
+        }
     }
 
+    fun selectCategory(category: Category) {
+        val newCategory = if (_uiState.value.selectedCategory == category) {
+            null
+        } else {
+            category
+        }
+
+        _uiState.value = _uiState.value.copy(
+            selectedCategory = newCategory,
+            filteredListings = filterListings(_uiState.value.allListings, newCategory)
+        )
+    }
+
+    fun clearCategoryFilter() {
+        _uiState.value = _uiState.value.copy(
+            selectedCategory = null,
+            filteredListings = _uiState.value.allListings
+        )
+    }
 }

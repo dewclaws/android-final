@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import week11.st451951.nearbuy.data.Category
 import week11.st451951.nearbuy.data.ImageUploader
 import week11.st451951.nearbuy.data.ListingLocation
 import week11.st451951.nearbuy.data.ListingsRepository
@@ -19,12 +20,14 @@ import week11.st451951.nearbuy.data.LocationManager
  */
 data class CreateListingUIState(
     val title: String = "",
+    val category: Category? = null,
     val priceText: String = "",
     val description: String = "",
     val selectedImages: List<Uri> = emptyList(),
     val location: ListingLocation? = null,
     val isLoadingLocation: Boolean = false,
     val titleError: String? = null,
+    val categoryError: String? = null,
     val priceError: String? = null,
     val descriptionError: String? = null,
     val imageError: String? = null,
@@ -43,8 +46,6 @@ sealed class CreateListingEvent {
 
 /**
  * ViewModel for CreateListingScreen
- *
- * Handles form state, validation, image upload, location, and listing creation
  */
 class CreateListingViewModel(
     private val repository: ListingsRepository = ListingsRepository(),
@@ -67,6 +68,10 @@ class CreateListingViewModel(
     // #############
     fun updateTitle(title: String) {
         _uiState.value = _uiState.value.copy(title = title, titleError = null)
+    }
+
+    fun updateCategory(category: Category) {
+        _uiState.value = _uiState.value.copy(category = category, categoryError = null)
     }
 
     fun updatePrice(priceText: String) {
@@ -150,6 +155,11 @@ class CreateListingViewModel(
             hasError = true
         }
 
+        if (state.category == null) {
+            _uiState.value = _uiState.value.copy(categoryError = "Please select a category")
+            hasError = true
+        }
+
         if (state.priceText.isBlank()) {
             _uiState.value = _uiState.value.copy(priceError = "Please enter a price")
             hasError = true
@@ -203,9 +213,10 @@ class CreateListingViewModel(
 
                 val imageUrls = uploadResult.getOrThrow()
 
-                // Create listing with location
+                // Create listing with category
                 val createResult = repository.createListing(
                     title = _uiState.value.title,
+                    category = _uiState.value.category!!.displayName,
                     price = _uiState.value.priceText.toDouble(),
                     description = _uiState.value.description,
                     imageUrls = imageUrls,

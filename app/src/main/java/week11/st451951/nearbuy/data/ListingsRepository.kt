@@ -90,6 +90,7 @@ class ListingsRepository {
      */
     suspend fun createListing(
         title: String,
+        category: String,
         price: Double,
         description: String,
         imageUrls: List<String> = emptyList(),
@@ -101,6 +102,7 @@ class ListingsRepository {
 
             val listing = Listing(
                 title = title,
+                category = category,
                 price = price,
                 description = description,
                 imageUrls = imageUrls,

@@ -28,7 +28,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,7 +45,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import week11.st451951.nearbuy.data.Category
 import week11.st451951.nearbuy.data.LocationManager
 import week11.st451951.nearbuy.ui.components.LocationWidget
 
@@ -65,6 +71,9 @@ fun CreateListingScreen(
         CreateListingViewModel(locationManager = LocationManager(context))
     }
     val uiState by viewModel.uiState.collectAsState()
+
+    // Category dropdown state
+    var categoryExpanded by remember { mutableStateOf(false) }
 
     // Permission launcher for location
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -142,17 +151,13 @@ fun CreateListingScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                //
                 // IMAGE GRID
-                //
                 ImageGrid(
                     images = uiState.selectedImages,
                     onAddImage = { imagePickerLauncher.launch("image/*") }
                 )
 
-                // ######################
                 // TITLE AND PRICE INPUTS
-                // ######################
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -179,9 +184,41 @@ fun CreateListingScreen(
                     )
                 }
 
-                // #################
+                // CATEGORY DROPDOWN
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = !categoryExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = uiState.category?.displayName ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                        isError = uiState.categoryError != null,
+                        supportingText = uiState.categoryError?.let { { Text(it) } },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false }
+                    ) {
+                        Category.entries.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.displayName) },
+                                onClick = {
+                                    viewModel.updateCategory(category)
+                                    categoryExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 // DESCRIPTION INPUT
-                // #################
                 OutlinedTextField(
                     value = uiState.description,
                     onValueChange = { viewModel.updateDescription(it) },
@@ -194,9 +231,7 @@ fun CreateListingScreen(
                     supportingText = uiState.descriptionError?.let { { Text(it) } }
                 )
 
-                // ###############
                 // LOCATION PICKER
-                // ###############
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -250,11 +285,6 @@ private fun ImageGrid(
 ) {
     when (images.size) {
         0 -> {
-            // ###########################
-            // 0 IMAGES ADDED
-            //
-            // SHOW FULL-WIDTH PLACEHOLDER
-            // ###########################
             AddImagePlaceholder(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -263,11 +293,6 @@ private fun ImageGrid(
             )
         }
         1 -> {
-            // ###########################################
-            // 1 IMAGE ADDED
-            //
-            // SHOW FIRST IMAGE + PLACEHOLDER SIDE-BY-SIDE
-            // ###########################################
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -287,11 +312,6 @@ private fun ImageGrid(
             }
         }
         in 2..3 -> {
-            // #######################################
-            // 2-3 IMAGES ADDED
-            //
-            // SHOW 2x2 GRID WITH IMAGES + PLACEHOLDER
-            // #######################################
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -336,11 +356,6 @@ private fun ImageGrid(
             }
         }
         else -> {
-            // ################################
-            // 4 IMAGES ADDED
-            //
-            // SHOW 2x2 GRID W/ NO PLACEHOLDERS
-            // ################################
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
