@@ -102,7 +102,7 @@ class CreateListingViewModel(
         } else {
             val price = state.priceText.toDoubleOrNull()
             if (price == null || price < 0) {
-                _uiState.value = _uiState.value.copy(priceError = "Please enter a non-negative price")
+                _uiState.value = _uiState.value.copy(priceError = "Please enter a valid non-negative price")
                 hasError = true
             }
         }

@@ -43,9 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import week11.st451951.nearbuy.ui.components.formatTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -249,26 +247,6 @@ fun ListingDetailScreen(
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
-        }
-    }
-}
-
-private fun formatTimestamp(date: Date): String {
-    val now = Date()
-    val diff = now.time - date.time
-
-    val minutes = diff / (1000 * 60)
-    val hours = diff / (1000 * 60 * 60)
-    val days = diff / (1000 * 60 * 60 * 24)
-
-    return when {
-        minutes < 60 -> "$minutes min ago"
-        hours < 24 -> "$hours hour${if (hours > 1) "s" else ""} ago"
-        days == 1L -> "yesterday"
-        days < 7 -> "$days days ago"
-        else -> {
-            val format = SimpleDateFormat("MMM d", Locale.getDefault())
-            format.format(date)
         }
     }
 }
