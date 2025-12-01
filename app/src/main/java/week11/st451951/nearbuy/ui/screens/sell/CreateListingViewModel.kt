@@ -123,21 +123,28 @@ class CreateListingViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingLocation = true, locationError = null)
 
-            val result = locationManager.getCurrentLocation()
-            if (result.isSuccess) {
-                _uiState.value = _uiState.value.copy(
-                    location = result.getOrNull(),
-                    isLoadingLocation = false
-                )
-            } else {
+            try {
+                val result = locationManager.getCurrentLocation()
+                if (result.isSuccess) {
+                    _uiState.value = _uiState.value.copy(
+                        location = result.getOrNull(),
+                        isLoadingLocation = false
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingLocation = false,
+                        locationError = "Unable to get location"
+                    )
+                    _events.emit(
+                        CreateListingEvent.ShowToast(
+                            "Failed to get location: ${result.exceptionOrNull()?.message}"
+                        )
+                    )
+                }
+            } catch (_: SecurityException) {
                 _uiState.value = _uiState.value.copy(
                     isLoadingLocation = false,
-                    locationError = "Unable to get location"
-                )
-                _events.emit(
-                    CreateListingEvent.ShowToast(
-                        "Failed to get location: ${result.exceptionOrNull()?.message}"
-                    )
+                    locationError = "Location permission denied"
                 )
             }
         }
