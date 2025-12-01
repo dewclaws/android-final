@@ -92,7 +92,8 @@ class ListingsRepository {
         title: String,
         price: Double,
         description: String,
-        imageUrls: List<String> = emptyList()
+        imageUrls: List<String> = emptyList(),
+        location: ListingLocation = ListingLocation()
     ): Result<String> {
         return try {
             val userId = auth.currentUser?.uid
@@ -104,6 +105,7 @@ class ListingsRepository {
                 description = description,
                 imageUrls = imageUrls,
                 sellerId = userId,
+                location = location,
                 createdAt = Timestamp.now(),
                 updatedAt = Timestamp.now()
             )
@@ -123,7 +125,8 @@ class ListingsRepository {
         title: String,
         price: Double,
         description: String,
-        imageUrls: List<String>
+        imageUrls: List<String>,
+        location: ListingLocation? = null
     ): Result<Unit> {
         return try {
             val updates = hashMapOf(
@@ -133,6 +136,11 @@ class ListingsRepository {
                 "imageUrls" to imageUrls,
                 "updatedAt" to Timestamp.now()
             )
+
+            // Only update location if provided
+            if (location != null) {
+                updates["location"] = location
+            }
 
             listingsCollection.document(listingId).update(updates).await()
             Result.success(Unit)

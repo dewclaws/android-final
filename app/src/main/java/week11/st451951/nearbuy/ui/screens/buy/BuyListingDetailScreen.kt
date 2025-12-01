@@ -41,16 +41,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import week11.st451951.nearbuy.data.LocationManager
+import week11.st451951.nearbuy.ui.components.LocationWidget
 import week11.st451951.nearbuy.ui.components.formatTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuyListingDetailScreen(
     listingId: String,
-    onNavigateBack: () -> Unit,
-    viewModel: BuyListingDetailViewModel = remember { BuyListingDetailViewModel() }
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val viewModel: BuyListingDetailViewModel = remember {
+        BuyListingDetailViewModel(locationManager = LocationManager(context))
+    }
     val uiState by viewModel.uiState.collectAsState()
 
     // Load listing when screen is first composed
@@ -209,6 +213,18 @@ fun BuyListingDetailScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    // Location Widget
+                    if (uiState.listing!!.location.latitude != 0.0 &&
+                        uiState.listing!!.location.longitude != 0.0) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        LocationWidget(
+                            location = uiState.listing!!.location,
+                            distance = uiState.distance,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(80.dp))
                 }

@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import week11.st451951.nearbuy.data.Category
 import week11.st451951.nearbuy.data.Listing
+import week11.st451951.nearbuy.data.ListingLocation
 import week11.st451951.nearbuy.data.ListingsRepository
+import week11.st451951.nearbuy.data.LocationManager
 
 /**
  * Buy screen UI state
@@ -19,7 +21,8 @@ data class BuyUIState(
     val listings: List<Listing> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
-    val selectedCategory: Category? = null
+    val selectedCategory: Category? = null,
+    val userLocation: ListingLocation? = null
 )
 
 /**
@@ -32,10 +35,11 @@ sealed class BuyEvent {
 /**
  * ViewModel for BuyScreen
  *
- * Handles fetching and displaying all available listings
+ * Handles fetching and displaying all available listings sorted by distance
  */
 class BuyViewModel(
-    private val repository: ListingsRepository = ListingsRepository()
+    private val repository: ListingsRepository = ListingsRepository(),
+    private val locationManager: LocationManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BuyUIState())
@@ -45,7 +49,21 @@ class BuyViewModel(
     val events = _events.asSharedFlow()
 
     init {
+        getUserLocation()
         loadListings()
+    }
+
+    private fun getUserLocation() {
+        if (locationManager == null || !locationManager.hasLocationPermission()) {
+            return
+        }
+
+        viewModelScope.launch {
+            val result = locationManager.getCurrentLocation()
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(userLocation = result.getOrNull())
+            }
+        }
     }
 
     private fun loadListings() {
@@ -54,8 +72,9 @@ class BuyViewModel(
 
             try {
                 repository.getAllListings().collect { listings ->
+                    val sortedListings = sortListingsByDistance(listings)
                     _uiState.value = _uiState.value.copy(
-                        listings = listings,
+                        listings = sortedListings,
                         isLoading = false,
                         error = null
                     )
@@ -66,6 +85,23 @@ class BuyViewModel(
                     error = e.message ?: "Failed to load listings"
                 )
                 _events.emit(BuyEvent.ShowToast(e.message ?: "Failed to load listings"))
+            }
+        }
+    }
+
+    private fun sortListingsByDistance(listings: List<Listing>): List<Listing> {
+        val userLoc = _uiState.value.userLocation ?: return listings
+
+        return listings.sortedBy { listing ->
+            if (listing.location.latitude != 0.0 && listing.location.longitude != 0.0) {
+                LocationManager.calculateDistance(
+                    userLoc.latitude,
+                    userLoc.longitude,
+                    listing.location.latitude,
+                    listing.location.longitude
+                )
+            } else {
+                Double.MAX_VALUE // Put listings without location at the end
             }
         }
     }

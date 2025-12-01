@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import week11.st451951.nearbuy.data.ImageUploader
+import week11.st451951.nearbuy.data.ListingLocation
 import week11.st451951.nearbuy.data.ListingsRepository
+import week11.st451951.nearbuy.data.LocationManager
 
 /**
  * Create listing UI state
@@ -20,10 +22,13 @@ data class CreateListingUIState(
     val priceText: String = "",
     val description: String = "",
     val selectedImages: List<Uri> = emptyList(),
+    val location: ListingLocation? = null,
+    val isLoadingLocation: Boolean = false,
     val titleError: String? = null,
     val priceError: String? = null,
     val descriptionError: String? = null,
     val imageError: String? = null,
+    val locationError: String? = null,
     val isLoading: Boolean = false
 )
 
@@ -33,16 +38,18 @@ data class CreateListingUIState(
 sealed class CreateListingEvent {
     data class ShowToast(val message: String) : CreateListingEvent()
     data class ListingCreated(val listingId: String) : CreateListingEvent()
+    object RequestLocationPermission : CreateListingEvent()
 }
 
 /**
  * ViewModel for CreateListingScreen
  *
- * Handles form state, validation, image upload, and listing creation
+ * Handles form state, validation, image upload, location, and listing creation
  */
 class CreateListingViewModel(
     private val repository: ListingsRepository = ListingsRepository(),
-    private val imageUploader: ImageUploader = ImageUploader()
+    private val imageUploader: ImageUploader = ImageUploader(),
+    private val locationManager: LocationManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateListingUIState())
@@ -80,6 +87,53 @@ class CreateListingViewModel(
         } else {
             viewModelScope.launch {
                 _events.emit(CreateListingEvent.ShowToast("Maximum $MAX_IMAGES images allowed"))
+            }
+        }
+    }
+
+    // ###############
+    // LOCATION UPDATE
+    // ###############
+    fun requestLocation() {
+        if (locationManager == null) {
+            viewModelScope.launch {
+                _events.emit(CreateListingEvent.ShowToast("Location services not available"))
+            }
+            return
+        }
+
+        if (!locationManager.hasLocationPermission()) {
+            viewModelScope.launch {
+                _events.emit(CreateListingEvent.RequestLocationPermission)
+            }
+            return
+        }
+
+        fetchLocation()
+    }
+
+    fun fetchLocation() {
+        if (locationManager == null) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingLocation = true, locationError = null)
+
+            val result = locationManager.getCurrentLocation()
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(
+                    location = result.getOrNull(),
+                    isLoadingLocation = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isLoadingLocation = false,
+                    locationError = "Unable to get location"
+                )
+                _events.emit(
+                    CreateListingEvent.ShowToast(
+                        "Failed to get location: ${result.exceptionOrNull()?.message}"
+                    )
+                )
             }
         }
     }
@@ -149,12 +203,13 @@ class CreateListingViewModel(
 
                 val imageUrls = uploadResult.getOrThrow()
 
-                // Create listing
+                // Create listing with location
                 val createResult = repository.createListing(
                     title = _uiState.value.title,
                     price = _uiState.value.priceText.toDouble(),
                     description = _uiState.value.description,
-                    imageUrls = imageUrls
+                    imageUrls = imageUrls,
+                    location = _uiState.value.location ?: ListingLocation()
                 )
 
                 if (createResult.isSuccess) {

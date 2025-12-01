@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import week11.st451951.nearbuy.data.Listing
+import week11.st451951.nearbuy.data.ListingLocation
 import week11.st451951.nearbuy.data.ListingsRepository
+import week11.st451951.nearbuy.data.LocationManager
 import week11.st451951.nearbuy.data.UsersRepository
 
 /**
@@ -18,6 +20,8 @@ import week11.st451951.nearbuy.data.UsersRepository
 data class BuyListingDetailUIState(
     val listing: Listing? = null,
     val sellerName: String? = null,
+    val userLocation: ListingLocation? = null,
+    val distance: String? = null,
     val isLoading: Boolean = true
 )
 
@@ -35,7 +39,8 @@ sealed class BuyListingDetailEvent {
  */
 class BuyListingDetailViewModel(
     private val listingsRepository: ListingsRepository = ListingsRepository(),
-    private val usersRepository: UsersRepository = UsersRepository()
+    private val usersRepository: UsersRepository = UsersRepository(),
+    private val locationManager: LocationManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BuyListingDetailUIState())
@@ -43,6 +48,42 @@ class BuyListingDetailViewModel(
 
     private val _events = MutableSharedFlow<BuyListingDetailEvent>()
     val events = _events.asSharedFlow()
+
+    init {
+        getUserLocation()
+    }
+
+    private fun getUserLocation() {
+        if (locationManager == null || !locationManager.hasLocationPermission()) {
+            return
+        }
+
+        viewModelScope.launch {
+            val result = locationManager.getCurrentLocation()
+            if (result.isSuccess) {
+                _uiState.value = _uiState.value.copy(userLocation = result.getOrNull())
+                calculateDistance()
+            }
+        }
+    }
+
+    private fun calculateDistance() {
+        val userLoc = _uiState.value.userLocation
+        val listing = _uiState.value.listing
+
+        if (userLoc != null && listing != null &&
+            listing.location.latitude != 0.0 && listing.location.longitude != 0.0) {
+            val distanceKm = LocationManager.calculateDistance(
+                userLoc.latitude,
+                userLoc.longitude,
+                listing.location.latitude,
+                listing.location.longitude
+            )
+            _uiState.value = _uiState.value.copy(
+                distance = LocationManager.formatDistance(distanceKm)
+            )
+        }
+    }
 
     // #############
     // LOAD LISTING
@@ -56,6 +97,9 @@ class BuyListingDetailViewModel(
             if (listingResult.isSuccess) {
                 val listing = listingResult.getOrNull()
                 _uiState.value = _uiState.value.copy(listing = listing)
+
+                // Calculate distance to listing
+                calculateDistance()
 
                 // Fetch the seller's name
                 listing?.sellerId?.let { sellerId ->

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +33,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,16 +51,31 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import week11.st451951.nearbuy.data.LocationManager
+import week11.st451951.nearbuy.ui.components.LocationWidget
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateListingScreen(
     onNavigateBack: () -> Unit,
-    onListingCreated: (String) -> Unit,
-    viewModel: CreateListingViewModel = remember { CreateListingViewModel() }
+    onListingCreated: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val viewModel: CreateListingViewModel = remember {
+        CreateListingViewModel(locationManager = LocationManager(context))
+    }
     val uiState by viewModel.uiState.collectAsState()
+
+    // Permission launcher for location
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.fetchLocation()
+        } else {
+            Toast.makeText(context, "Location permission is required", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Handle events
     LaunchedEffect(Unit) {
@@ -69,6 +86,9 @@ fun CreateListingScreen(
                 }
                 is CreateListingEvent.ListingCreated -> {
                     onListingCreated(event.listingId)
+                }
+                is CreateListingEvent.RequestLocationPermission -> {
+                    locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
                 }
             }
         }
@@ -173,6 +193,40 @@ fun CreateListingScreen(
                     isError = uiState.descriptionError != null,
                     supportingText = uiState.descriptionError?.let { { Text(it) } }
                 )
+
+                // ###############
+                // LOCATION PICKER
+                // ###############
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Location",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    if (uiState.location != null) {
+                        LocationWidget(
+                            location = uiState.location!!,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        OutlinedButton(
+                            onClick = { viewModel.requestLocation() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !uiState.isLoadingLocation
+                        ) {
+                            if (uiState.isLoadingLocation) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text(if (uiState.isLoadingLocation) "Getting location..." else "Add Location")
+                        }
+                    }
+                }
             }
 
             if (uiState.isLoading) {

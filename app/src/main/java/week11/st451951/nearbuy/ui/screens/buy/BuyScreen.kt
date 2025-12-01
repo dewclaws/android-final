@@ -34,15 +34,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import week11.st451951.nearbuy.data.Category
+import week11.st451951.nearbuy.data.LocationManager
 import week11.st451951.nearbuy.ui.components.ListingItem
 import week11.st451951.nearbuy.ui.components.SectionHeader
 
 @Composable
 fun BuyScreen(
-    onListingClick: (String) -> Unit,
-    viewModel: BuyViewModel = remember { BuyViewModel() }
+    onListingClick: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val viewModel: BuyViewModel = remember {
+        BuyViewModel(locationManager = LocationManager(context))
+    }
     val uiState by viewModel.uiState.collectAsState()
 
     // Handle events
