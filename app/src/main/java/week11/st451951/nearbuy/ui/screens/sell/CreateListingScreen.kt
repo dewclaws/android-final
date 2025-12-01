@@ -35,96 +35,30 @@ import week11.st451951.nearbuy.data.ListingsRepository
 @Composable
 fun CreateListingScreen(
     onNavigateBack: () -> Unit,
-    onListingCreated: (String) -> Unit
+    onListingCreated: (String) -> Unit,
+    viewModel: CreateListingViewModel = remember { CreateListingViewModel() }
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val repository = remember { ListingsRepository() }
-    val imageUploader = remember { ImageUploader() }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var title by remember { mutableStateOf("") }
-    var priceText by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
-
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            if (selectedImages.size < 4) {
-                selectedImages = selectedImages + it
-            } else {
-                Toast.makeText(context, "Maximum 4 images allowed", Toast.LENGTH_SHORT).show()
+    // Handle events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is CreateListingEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is CreateListingEvent.ListingCreated -> {
+                    onListingCreated(event.listingId)
+                }
             }
         }
     }
 
-    fun validateAndCreateListing() {
-        when {
-            title.isBlank() -> {
-                Toast.makeText(context, "Please enter a title", Toast.LENGTH_SHORT).show()
-            }
-            priceText.isBlank() -> {
-                Toast.makeText(context, "Please enter a price", Toast.LENGTH_SHORT).show()
-            }
-            priceText.toDoubleOrNull() == null || priceText.toDouble() < 0 -> {
-                Toast.makeText(context, "Please enter a non-negative price", Toast.LENGTH_SHORT).show()
-            }
-            description.isBlank() -> {
-                Toast.makeText(context, "Please enter a description", Toast.LENGTH_SHORT).show()
-            }
-            selectedImages.isEmpty() -> {
-                Toast.makeText(context, "Please add at least one image", Toast.LENGTH_SHORT).show()
-            }
-            else -> {
-                isLoading = true
-                scope.launch {
-                    try {
-                        // Upload images
-                        val uploadResult = imageUploader.uploadImages(selectedImages)
-                        if (uploadResult.isFailure) {
-                            Toast.makeText(
-                                context,
-                                "Failed to upload images: ${uploadResult.exceptionOrNull()?.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            isLoading = false
-                            return@launch
-                        }
-
-                        val imageUrls = uploadResult.getOrThrow()
-
-                        // Create listing
-                        val createResult = repository.createListing(
-                            title = title,
-                            price = priceText.toDouble(),
-                            description = description,
-                            imageUrls = imageUrls
-                        )
-
-                        if (createResult.isSuccess) {
-                            Toast.makeText(context, "Listing created!", Toast.LENGTH_SHORT).show()
-                            onListingCreated(createResult.getOrThrow())
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Failed to create listing: ${createResult.exceptionOrNull()?.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            context,
-                            "Error: ${e.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } finally {
-                        isLoading = false
-                    }
-                }
-            }
-        }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.addImage(it) }
     }
 
     Scaffold(
@@ -142,9 +76,9 @@ fun CreateListingScreen(
             )
         },
         floatingActionButton = {
-            if (!isLoading) {
+            if (!uiState.isLoading) {
                 FloatingActionButton(
-                    onClick = { validateAndCreateListing() },
+                    onClick = { viewModel.createListing() },
                     modifier = Modifier.padding(bottom = 112.dp, end = 16.dp),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -173,7 +107,7 @@ fun CreateListingScreen(
                 // IMAGE GRID
                 //
                 ImageGrid(
-                    images = selectedImages,
+                    images = uiState.selectedImages,
                     onAddImage = { imagePickerLauncher.launch("image/*") }
                 )
 
@@ -185,21 +119,24 @@ fun CreateListingScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
+                        value = uiState.title,
+                        onValueChange = { viewModel.updateTitle(it) },
                         label = { Text("Title") },
                         modifier = Modifier.weight(1f),
-                        singleLine = true
+                        singleLine = true,
+                        isError = uiState.titleError != null,
+                        supportingText = uiState.titleError?.let { { Text(it) } }
                     )
 
                     OutlinedTextField(
-                        value = priceText,
-                        onValueChange = { priceText = it },
+                        value = uiState.priceText,
+                        onValueChange = { viewModel.updatePrice(it) },
                         label = { Text("Price") },
                         leadingIcon = { Text("$") },
                         modifier = Modifier.width(120.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true
+                        singleLine = true,
+                        isError = uiState.priceError != null
                     )
                 }
 
@@ -207,17 +144,19 @@ fun CreateListingScreen(
                 // DESCRIPTION INPUT
                 // #################
                 OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
+                    value = uiState.description,
+                    onValueChange = { viewModel.updateDescription(it) },
                     label = { Text("Description") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),
-                    maxLines = 10
+                    maxLines = 10,
+                    isError = uiState.descriptionError != null,
+                    supportingText = uiState.descriptionError?.let { { Text(it) } }
                 )
             }
 
-            if (isLoading) {
+            if (uiState.isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

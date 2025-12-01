@@ -32,26 +32,29 @@ import java.util.*
 fun ListingDetailScreen(
     listingId: String,
     onNavigateBack: () -> Unit,
-    onEditListing: (String) -> Unit
+    onEditListing: (String) -> Unit,
+    viewModel: ListingDetailViewModel = remember { ListingDetailViewModel() }
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val repository = remember { ListingsRepository() }
-    val auth = remember { FirebaseAuth.getInstance() }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var listing by remember { mutableStateOf<Listing?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var isDeleting by remember { mutableStateOf(false) }
-
-    val isOwner = listing?.sellerId == auth.currentUser?.uid
-
+    // Load listing when screen is first composed
     LaunchedEffect(listingId) {
-        val result = repository.getListing(listingId)
-        if (result.isSuccess) {
-            listing = result.getOrNull()
+        viewModel.loadListing(listingId)
+    }
+
+    // Handle events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is ListingDetailEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is ListingDetailEvent.NavigateBack -> {
+                    onNavigateBack()
+                }
+            }
         }
-        isLoading = false
     }
 
     Scaffold(
@@ -67,8 +70,8 @@ fun ListingDetailScreen(
                     }
                 },
                 actions = {
-                    if (isOwner && listing != null) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
+                    if (uiState.isOwner && uiState.listing != null) {
+                        IconButton(onClick = { viewModel.showDeleteDialog() }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Delete listing"
@@ -79,7 +82,7 @@ fun ListingDetailScreen(
             )
         },
         floatingActionButton = {
-            if (isOwner && listing != null) {
+            if (uiState.isOwner && uiState.listing != null) {
                 FloatingActionButton(
                     onClick = { onEditListing(listingId) },
                     modifier = Modifier.padding(bottom = 96.dp, end = 16.dp),
@@ -97,34 +100,19 @@ fun ListingDetailScreen(
         // #####################
         // CONFIRM DELETE DIALOG
         // #####################
-        if (showDeleteDialog) {
+        if (uiState.showDeleteDialog) {
             AlertDialog(
-                onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
+                onDismissRequest = { viewModel.hideDeleteDialog() },
                 title = { Text("Delete Listing") },
                 text = { Text("This listing will be permanently deleted. Are you sure you want to delete it?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            isDeleting = true
-                            scope.launch {
-                                val result = repository.deleteListing(listingId)
-                                isDeleting = false
-                                if (result.isSuccess) {
-                                    Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
-                                    onNavigateBack()
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "Failed to delete listing: ${result.exceptionOrNull()?.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                    showDeleteDialog = false
-                                }
-                            }
+                            viewModel.deleteListing(listingId)
                         },
-                        enabled = !isDeleting
+                        enabled = !uiState.isDeleting
                     ) {
-                        if (isDeleting) {
+                        if (uiState.isDeleting) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp
@@ -136,8 +124,8 @@ fun ListingDetailScreen(
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { showDeleteDialog = false },
-                        enabled = !isDeleting
+                        onClick = { viewModel.hideDeleteDialog() },
+                        enabled = !uiState.isDeleting
                     ) {
                         Text("Cancel")
                     }
@@ -145,7 +133,7 @@ fun ListingDetailScreen(
             )
         }
 
-        if (isLoading) {
+        if (uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -154,7 +142,7 @@ fun ListingDetailScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (listing == null) {
+        } else if (uiState.listing == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -184,7 +172,7 @@ fun ListingDetailScreen(
                         .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(listing!!.imageUrls) { imageUrl ->
+                    items(uiState.listing!!.imageUrls) { imageUrl ->
                         AsyncImage(
                             model = imageUrl,
                             contentDescription = "Listing image",
@@ -210,19 +198,19 @@ fun ListingDetailScreen(
                     // TITLE + PRICE + TIMESTAMP BLOCK
                     // ###############################
                     Text(
-                        text = listing!!.title,
+                        text = uiState.listing!!.title,
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
-                        text = "$${listing!!.price.toInt()}",
+                        text = "$${uiState.listing!!.price.toInt()}",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
-                        text = "Listed ${formatTimestamp(listing!!.createdAt.toDate())}",
+                        text = "Listed ${formatTimestamp(uiState.listing!!.createdAt.toDate())}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -233,7 +221,7 @@ fun ListingDetailScreen(
                     // DESCRIPTION BLOCK
                     // #################
                     Text(
-                        text = listing!!.description,
+                        text = uiState.listing!!.description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

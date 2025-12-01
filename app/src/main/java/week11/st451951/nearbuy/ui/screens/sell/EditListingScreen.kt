@@ -30,78 +30,26 @@ import week11.st451951.nearbuy.data.ListingsRepository
 fun EditListingScreen(
     listingId: String,
     onNavigateBack: () -> Unit,
-    onListingUpdated: (String) -> Unit
+    onListingUpdated: (String) -> Unit,
+    viewModel: EditListingViewModel = remember { EditListingViewModel() }
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val repository = remember { ListingsRepository() }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var listing by remember { mutableStateOf<Listing?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isSaving by remember { mutableStateOf(false) }
-
-    var title by remember { mutableStateOf("") }
-    var priceText by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-
+    // Load listing when screen is first composed
     LaunchedEffect(listingId) {
-        val result = repository.getListing(listingId)
-        if (result.isSuccess) {
-            listing = result.getOrNull()
-            listing?.let {
-                title = it.title
-                priceText = it.price.toString()
-                description = it.description
-            }
-        }
-        isLoading = false
+        viewModel.loadListing(listingId)
     }
 
-    fun validateAndUpdateListing() {
-        when {
-            title.isBlank() -> {
-                Toast.makeText(context, "Please enter a title", Toast.LENGTH_SHORT).show()
-            }
-            priceText.isBlank() -> {
-                Toast.makeText(context, "Please enter a price", Toast.LENGTH_SHORT).show()
-            }
-            priceText.toDoubleOrNull() == null || priceText.toDouble() < 0 -> {
-                Toast.makeText(context, "Please enter a valid non-negative price", Toast.LENGTH_SHORT).show()
-            }
-            description.isBlank() -> {
-                Toast.makeText(context, "Please enter a description", Toast.LENGTH_SHORT).show()
-            }
-            else -> {
-                isSaving = true
-                scope.launch {
-                    try {
-                        val updateResult = repository.updateListing(
-                            listingId = listingId,
-                            title = title,
-                            price = priceText.toDouble(),
-                            description = description,
-                            imageUrls = listing?.imageUrls ?: emptyList()
-                        )
-
-                        if (updateResult.isSuccess) {
-                            Toast.makeText(context, "Listing edited", Toast.LENGTH_SHORT).show()
-                            onListingUpdated(listingId)
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Failed to update listing: ${updateResult.exceptionOrNull()?.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            context,
-                            "Error: ${e.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } finally {
-                        isSaving = false
-                    }
+    // Handle events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is EditListingEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is EditListingEvent.ListingUpdated -> {
+                    onListingUpdated(event.listingId)
                 }
             }
         }
@@ -122,9 +70,9 @@ fun EditListingScreen(
             )
         },
         floatingActionButton = {
-            if (!isSaving && !isLoading) {
+            if (!uiState.isSaving && !uiState.isLoading) {
                 FloatingActionButton(
-                    onClick = { validateAndUpdateListing() },
+                    onClick = { viewModel.updateListing(listingId) },
                     modifier = Modifier.padding(bottom = 96.dp, end = 16.dp),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -137,7 +85,7 @@ fun EditListingScreen(
             }
         }
     ) { paddingValues ->
-        if (isLoading) {
+        if (uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -146,7 +94,7 @@ fun EditListingScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (listing == null) {
+        } else if (uiState.listing == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -181,7 +129,7 @@ fun EditListingScreen(
                             .height(200.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(listing!!.imageUrls) { imageUrl ->
+                        items(uiState.listing!!.imageUrls) { imageUrl ->
                             AsyncImage(
                                 model = imageUrl,
                                 contentDescription = "Listing image",
@@ -202,23 +150,26 @@ fun EditListingScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
-                            value = title,
-                            onValueChange = { title = it },
+                            value = uiState.title,
+                            onValueChange = { viewModel.updateTitle(it) },
                             label = { Text("Title") },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            enabled = !isSaving
+                            enabled = !uiState.isSaving,
+                            isError = uiState.titleError != null,
+                            supportingText = uiState.titleError?.let { { Text(it) } }
                         )
 
                         OutlinedTextField(
-                            value = priceText,
-                            onValueChange = { priceText = it },
+                            value = uiState.priceText,
+                            onValueChange = { viewModel.updatePrice(it) },
                             label = { Text("Price") },
                             leadingIcon = { Text("$") },
                             modifier = Modifier.width(120.dp),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
-                            enabled = !isSaving
+                            enabled = !uiState.isSaving,
+                            isError = uiState.priceError != null
                         )
                     }
 
@@ -226,20 +177,22 @@ fun EditListingScreen(
                     // DESCRIPTION INPUT
                     // #################
                     OutlinedTextField(
-                        value = description,
-                        onValueChange = { description = it },
+                        value = uiState.description,
+                        onValueChange = { viewModel.updateDescription(it) },
                         label = { Text("Description") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp),
                         maxLines = 10,
-                        enabled = !isSaving
+                        enabled = !uiState.isSaving,
+                        isError = uiState.descriptionError != null,
+                        supportingText = uiState.descriptionError?.let { { Text(it) } }
                     )
 
                     Spacer(modifier = Modifier.height(80.dp))
                 }
 
-                if (isSaving) {
+                if (uiState.isSaving) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

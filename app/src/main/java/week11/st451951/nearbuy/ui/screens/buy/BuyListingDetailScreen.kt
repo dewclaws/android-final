@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,31 +52,26 @@ import week11.st451951.nearbuy.ui.components.formatTimestamp
 @Composable
 fun BuyListingDetailScreen(
     listingId: String,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: BuyListingDetailViewModel = remember { BuyListingDetailViewModel() }
 ) {
     val context = LocalContext.current
-    val listingsRepository = remember { ListingsRepository() }
-    val usersRepository = remember { UsersRepository() }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var listing by remember { mutableStateOf<Listing?>(null) }
-    var sellerName by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-
+    // Load listing when screen is first composed
     LaunchedEffect(listingId) {
-        // Fetch the listing
-        val listingResult = listingsRepository.getListing(listingId)
-        if (listingResult.isSuccess) {
-            listing = listingResult.getOrNull()
+        viewModel.loadListing(listingId)
+    }
 
-            // Fetch the seller's name
-            listing?.sellerId?.let { sellerId ->
-                val userResult = usersRepository.getUser(sellerId)
-                if (userResult.isSuccess) {
-                    sellerName = userResult.getOrNull()?.displayName
+    // Handle events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is BuyListingDetailEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
             }
         }
-        isLoading = false
     }
 
     Scaffold(
@@ -93,7 +89,7 @@ fun BuyListingDetailScreen(
             )
         }
     ) { paddingValues ->
-        if (isLoading) {
+        if (uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -102,7 +98,7 @@ fun BuyListingDetailScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (listing == null) {
+        } else if (uiState.listing == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -130,7 +126,7 @@ fun BuyListingDetailScreen(
                         .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(listing!!.imageUrls) { imageUrl ->
+                    items(uiState.listing!!.imageUrls) { imageUrl ->
                         AsyncImage(
                             model = imageUrl,
                             contentDescription = "Listing image",
@@ -161,20 +157,20 @@ fun BuyListingDetailScreen(
                         ) {
                             // Title
                             Text(
-                                text = listing!!.title,
+                                text = uiState.listing!!.title,
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
                             // Price
                             Text(
-                                text = "$${listing!!.price.toInt()}",
+                                text = "$${uiState.listing!!.price.toInt()}",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
                             // Seller Name
-                            sellerName?.let { name ->
+                            uiState.sellerName?.let { name ->
                                 Text(
                                     text = "For sale by $name",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -185,13 +181,7 @@ fun BuyListingDetailScreen(
 
                         // Contact Seller Button
                         Button(
-                            onClick = {
-                                Toast.makeText(
-                                    context,
-                                    "Contact seller feature coming soon!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            },
+                            onClick = { viewModel.contactSeller() },
                             shape = RoundedCornerShape(24.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -211,7 +201,7 @@ fun BuyListingDetailScreen(
 
                     // Timestamp
                     Text(
-                        text = "Listed ${formatTimestamp(listing!!.createdAt.toDate())}",
+                        text = "Listed ${formatTimestamp(uiState.listing!!.createdAt.toDate())}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -220,7 +210,7 @@ fun BuyListingDetailScreen(
 
                     // Description
                     Text(
-                        text = listing!!.description,
+                        text = uiState.listing!!.description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
