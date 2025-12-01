@@ -126,7 +126,7 @@ class ListingsRepository {
         imageUrls: List<String>
     ): Result<Unit> {
         return try {
-            val updates = hashMapOf<String, Any>(
+            val updates = hashMapOf(
                 "title" to title,
                 "price" to price,
                 "description" to description,

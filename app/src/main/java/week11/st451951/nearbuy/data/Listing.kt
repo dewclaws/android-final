@@ -12,11 +12,7 @@ enum class Category(val displayName: String, val drawableRes: Int) {
     BOOKS("Books", R.drawable.category_books),
     SPORTS("Sports", R.drawable.category_sports);
 
-    companion object {
-        fun fromString(value: String): Category? {
-            return entries.find { it.displayName.equals(value, ignoreCase = true) }
-        }
-    }
+    companion object
 }
 
 data class Listing(

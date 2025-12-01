@@ -68,7 +68,4 @@ class SellViewModel(
         }
     }
 
-    fun refresh() {
-        loadUserListings()
-    }
 }

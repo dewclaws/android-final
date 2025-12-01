@@ -75,7 +75,4 @@ class BuyViewModel(
         // TODO: Filter listings by category
     }
 
-    fun clearCategoryFilter() {
-        _uiState.value = _uiState.value.copy(selectedCategory = null)
-    }
 }

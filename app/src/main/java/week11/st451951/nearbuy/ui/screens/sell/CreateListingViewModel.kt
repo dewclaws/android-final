@@ -84,13 +84,6 @@ class CreateListingViewModel(
         }
     }
 
-    fun removeImage(uri: Uri) {
-        val currentImages = _uiState.value.selectedImages
-        _uiState.value = _uiState.value.copy(
-            selectedImages = currentImages.filter { it != uri }
-        )
-    }
-
     // ##########
     // VALIDATION
     // ##########
