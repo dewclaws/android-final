@@ -8,7 +8,17 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,8 +27,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,9 +57,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import kotlinx.coroutines.launch
-import week11.st451951.nearbuy.data.ImageUploader
-import week11.st451951.nearbuy.data.ListingsRepository
+import week11.st451951.nearbuy.data.Category
+import week11.st451951.nearbuy.data.LocationManager
+import week11.st451951.nearbuy.ui.components.LocationWidget
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,93 +68,46 @@ fun CreateListingScreen(
     onListingCreated: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val repository = remember { ListingsRepository() }
-    val imageUploader = remember { ImageUploader() }
+    val viewModel: CreateListingViewModel = remember {
+        CreateListingViewModel(locationManager = LocationManager(context))
+    }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var title by remember { mutableStateOf("") }
-    var priceText by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
+    // Category dropdown state
+    var categoryExpanded by remember { mutableStateOf(false) }
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            if (selectedImages.size < 4) {
-                selectedImages = selectedImages + it
-            } else {
-                Toast.makeText(context, "Maximum 4 images allowed", Toast.LENGTH_SHORT).show()
+    // Permission launcher for location
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.fetchLocation()
+        } else {
+            Toast.makeText(context, "Location permission is required", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Handle events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is CreateListingEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is CreateListingEvent.ListingCreated -> {
+                    onListingCreated(event.listingId)
+                }
+                is CreateListingEvent.RequestLocationPermission -> {
+                    locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                }
             }
         }
     }
 
-    fun validateAndCreateListing() {
-        when {
-            title.isBlank() -> {
-                Toast.makeText(context, "Please enter a title", Toast.LENGTH_SHORT).show()
-            }
-            priceText.isBlank() -> {
-                Toast.makeText(context, "Please enter a price", Toast.LENGTH_SHORT).show()
-            }
-            priceText.toDoubleOrNull() == null || priceText.toDouble() < 0 -> {
-                Toast.makeText(context, "Please enter a non-negative price", Toast.LENGTH_SHORT).show()
-            }
-            description.isBlank() -> {
-                Toast.makeText(context, "Please enter a description", Toast.LENGTH_SHORT).show()
-            }
-            selectedImages.isEmpty() -> {
-                Toast.makeText(context, "Please add at least one image", Toast.LENGTH_SHORT).show()
-            }
-            else -> {
-                isLoading = true
-                scope.launch {
-                    try {
-                        // Upload images
-                        val uploadResult = imageUploader.uploadImages(selectedImages)
-                        if (uploadResult.isFailure) {
-                            Toast.makeText(
-                                context,
-                                "Failed to upload images: ${uploadResult.exceptionOrNull()?.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            isLoading = false
-                            return@launch
-                        }
-
-                        val imageUrls = uploadResult.getOrThrow()
-
-                        // Create listing
-                        val createResult = repository.createListing(
-                            title = title,
-                            price = priceText.toDouble(),
-                            description = description,
-                            imageUrls = imageUrls
-                        )
-
-                        if (createResult.isSuccess) {
-                            Toast.makeText(context, "Listing created!", Toast.LENGTH_SHORT).show()
-                            onListingCreated(createResult.getOrThrow())
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Failed to create listing: ${createResult.exceptionOrNull()?.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            context,
-                            "Error: ${e.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } finally {
-                        isLoading = false
-                    }
-                }
-            }
-        }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.addImage(it) }
     }
 
     Scaffold(
@@ -142,9 +125,9 @@ fun CreateListingScreen(
             )
         },
         floatingActionButton = {
-            if (!isLoading) {
+            if (!uiState.isLoading) {
                 FloatingActionButton(
-                    onClick = { validateAndCreateListing() },
+                    onClick = { viewModel.createListing() },
                     modifier = Modifier.padding(bottom = 112.dp, end = 16.dp),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -169,55 +152,120 @@ fun CreateListingScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                //
                 // IMAGE GRID
-                //
                 ImageGrid(
-                    images = selectedImages,
+                    images = uiState.selectedImages,
                     onAddImage = { imagePickerLauncher.launch("image/*") }
                 )
 
-                // ######################
                 // TITLE AND PRICE INPUTS
-                // ######################
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
+                        value = uiState.title,
+                        onValueChange = { viewModel.updateTitle(it) },
                         label = { Text("Title") },
                         modifier = Modifier.weight(1f),
-                        singleLine = true
+                        singleLine = true,
+                        isError = uiState.titleError != null,
+                        supportingText = uiState.titleError?.let { { Text(it) } }
                     )
 
                     OutlinedTextField(
-                        value = priceText,
-                        onValueChange = { priceText = it },
+                        value = uiState.priceText,
+                        onValueChange = { viewModel.updatePrice(it) },
                         label = { Text("Price") },
                         leadingIcon = { Text("$") },
                         modifier = Modifier.width(120.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true
+                        singleLine = true,
+                        isError = uiState.priceError != null
                     )
                 }
 
-                // #################
+                // CATEGORY DROPDOWN
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = !categoryExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = uiState.category?.displayName ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                        isError = uiState.categoryError != null,
+                        supportingText = uiState.categoryError?.let { { Text(it) } },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false }
+                    ) {
+                        Category.entries.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.displayName) },
+                                onClick = {
+                                    viewModel.updateCategory(category)
+                                    categoryExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 // DESCRIPTION INPUT
-                // #################
                 OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
+                    value = uiState.description,
+                    onValueChange = { viewModel.updateDescription(it) },
                     label = { Text("Description") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),
-                    maxLines = 10
+                    maxLines = 10,
+                    isError = uiState.descriptionError != null,
+                    supportingText = uiState.descriptionError?.let { { Text(it) } }
                 )
+
+                // LOCATION PICKER
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Location",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    if (uiState.location != null) {
+                        LocationWidget(
+                            location = uiState.location!!,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        OutlinedButton(
+                            onClick = { viewModel.requestLocation() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !uiState.isLoadingLocation
+                        ) {
+                            if (uiState.isLoadingLocation) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text(if (uiState.isLoadingLocation) "Getting location..." else "Add Location")
+                        }
+                    }
+                }
             }
 
-            if (isLoading) {
+            if (uiState.isLoading) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -238,11 +286,6 @@ private fun ImageGrid(
 ) {
     when (images.size) {
         0 -> {
-            // ###########################
-            // 0 IMAGES ADDED
-            //
-            // SHOW FULL-WIDTH PLACEHOLDER
-            // ###########################
             AddImagePlaceholder(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -251,11 +294,6 @@ private fun ImageGrid(
             )
         }
         1 -> {
-            // ###########################################
-            // 1 IMAGE ADDED
-            //
-            // SHOW FIRST IMAGE + PLACEHOLDER SIDE-BY-SIDE
-            // ###########################################
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -275,11 +313,6 @@ private fun ImageGrid(
             }
         }
         in 2..3 -> {
-            // #######################################
-            // 2-3 IMAGES ADDED
-            //
-            // SHOW 2x2 GRID WITH IMAGES + PLACEHOLDER
-            // #######################################
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -324,11 +357,6 @@ private fun ImageGrid(
             }
         }
         else -> {
-            // ################################
-            // 4 IMAGES ADDED
-            //
-            // SHOW 2x2 GRID W/ NO PLACEHOLDERS
-            // ################################
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
