@@ -65,17 +65,4 @@ class ImageUploader() {
         }
     }
 
-    /**
-     * Delete an image from Firebase Storage given its download URL
-     * @param downloadUrl The download URL of the image to delete
-     */
-    suspend fun deleteImage(downloadUrl: String): Result<Unit> {
-        return try {
-            val storageRef = storage.getReferenceFromUrl(downloadUrl)
-            storageRef.delete().await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 }

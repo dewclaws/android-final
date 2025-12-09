@@ -1,18 +1,41 @@
 package week11.st451951.nearbuy.ui.screens.sell
 
-import androidx.compose.foundation.layout.*
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,38 +43,36 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.launch
-import week11.st451951.nearbuy.data.Listing
-import week11.st451951.nearbuy.data.ListingsRepository
-import java.text.SimpleDateFormat
-import java.util.*
+import week11.st451951.nearbuy.ui.components.formatTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListingDetailScreen(
     listingId: String,
     onNavigateBack: () -> Unit,
-    onEditListing: (String) -> Unit
+    onEditListing: (String) -> Unit,
+    viewModel: ListingDetailViewModel = remember { ListingDetailViewModel() }
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val repository = remember { ListingsRepository() }
-    val auth = remember { FirebaseAuth.getInstance() }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var listing by remember { mutableStateOf<Listing?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var isDeleting by remember { mutableStateOf(false) }
-
-    val isOwner = listing?.sellerId == auth.currentUser?.uid
-
+    // Load listing when screen is first composed
     LaunchedEffect(listingId) {
-        val result = repository.getListing(listingId)
-        if (result.isSuccess) {
-            listing = result.getOrNull()
+        viewModel.loadListing(listingId)
+    }
+
+    // Handle events
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is ListingDetailEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+                is ListingDetailEvent.NavigateBack -> {
+                    onNavigateBack()
+                }
+            }
         }
-        isLoading = false
     }
 
     Scaffold(
@@ -67,8 +88,8 @@ fun ListingDetailScreen(
                     }
                 },
                 actions = {
-                    if (isOwner && listing != null) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
+                    if (uiState.isOwner && uiState.listing != null) {
+                        IconButton(onClick = { viewModel.showDeleteDialog() }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Delete listing"
@@ -79,7 +100,7 @@ fun ListingDetailScreen(
             )
         },
         floatingActionButton = {
-            if (isOwner && listing != null) {
+            if (uiState.isOwner && uiState.listing != null) {
                 FloatingActionButton(
                     onClick = { onEditListing(listingId) },
                     modifier = Modifier.padding(bottom = 96.dp, end = 16.dp),
@@ -97,34 +118,19 @@ fun ListingDetailScreen(
         // #####################
         // CONFIRM DELETE DIALOG
         // #####################
-        if (showDeleteDialog) {
+        if (uiState.showDeleteDialog) {
             AlertDialog(
-                onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
+                onDismissRequest = { viewModel.hideDeleteDialog() },
                 title = { Text("Delete Listing") },
                 text = { Text("This listing will be permanently deleted. Are you sure you want to delete it?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            isDeleting = true
-                            scope.launch {
-                                val result = repository.deleteListing(listingId)
-                                isDeleting = false
-                                if (result.isSuccess) {
-                                    Toast.makeText(context, "Listing deleted", Toast.LENGTH_SHORT).show()
-                                    onNavigateBack()
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "Failed to delete listing: ${result.exceptionOrNull()?.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                    showDeleteDialog = false
-                                }
-                            }
+                            viewModel.deleteListing(listingId)
                         },
-                        enabled = !isDeleting
+                        enabled = !uiState.isDeleting
                     ) {
-                        if (isDeleting) {
+                        if (uiState.isDeleting) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp
@@ -136,8 +142,8 @@ fun ListingDetailScreen(
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { showDeleteDialog = false },
-                        enabled = !isDeleting
+                        onClick = { viewModel.hideDeleteDialog() },
+                        enabled = !uiState.isDeleting
                     ) {
                         Text("Cancel")
                     }
@@ -145,7 +151,7 @@ fun ListingDetailScreen(
             )
         }
 
-        if (isLoading) {
+        if (uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -154,7 +160,7 @@ fun ListingDetailScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (listing == null) {
+        } else if (uiState.listing == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -184,7 +190,7 @@ fun ListingDetailScreen(
                         .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(listing!!.imageUrls) { imageUrl ->
+                    items(uiState.listing!!.imageUrls) { imageUrl ->
                         AsyncImage(
                             model = imageUrl,
                             contentDescription = "Listing image",
@@ -210,19 +216,19 @@ fun ListingDetailScreen(
                     // TITLE + PRICE + TIMESTAMP BLOCK
                     // ###############################
                     Text(
-                        text = listing!!.title,
+                        text = uiState.listing!!.title,
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
-                        text = "$${listing!!.price.toInt()}",
+                        text = "$${uiState.listing!!.price.toInt()}",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Text(
-                        text = "Listed ${formatTimestamp(listing!!.createdAt.toDate())}",
+                        text = "Listed ${formatTimestamp(uiState.listing!!.createdAt.toDate())}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -233,7 +239,7 @@ fun ListingDetailScreen(
                     // DESCRIPTION BLOCK
                     // #################
                     Text(
-                        text = listing!!.description,
+                        text = uiState.listing!!.description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -241,26 +247,6 @@ fun ListingDetailScreen(
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
-        }
-    }
-}
-
-private fun formatTimestamp(date: Date): String {
-    val now = Date()
-    val diff = now.time - date.time
-
-    val minutes = diff / (1000 * 60)
-    val hours = diff / (1000 * 60 * 60)
-    val days = diff / (1000 * 60 * 60 * 24)
-
-    return when {
-        minutes < 60 -> "$minutes min ago"
-        hours < 24 -> "$hours hour${if (hours > 1) "s" else ""} ago"
-        days == 1L -> "yesterday"
-        days < 7 -> "$days days ago"
-        else -> {
-            val format = SimpleDateFormat("MMM d", Locale.getDefault())
-            format.format(date)
         }
     }
 }
