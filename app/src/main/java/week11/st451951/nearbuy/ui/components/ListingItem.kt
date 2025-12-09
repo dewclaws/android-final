@@ -113,15 +113,21 @@ fun ListingItem(
     }
 }
 
+// Time calculation constants
+private const val MILLIS_PER_MINUTE = 1000 * 60L
+private const val MILLIS_PER_HOUR = MILLIS_PER_MINUTE * 60L
+private const val MILLIS_PER_DAY = MILLIS_PER_HOUR * 24L
+
 fun formatTimestamp(date: Date): String {
     val now = Date()
     val diff = now.time - date.time
 
-    val minutes = diff / (1000 * 60)
-    val hours = diff / (1000 * 60 * 60)
-    val days = diff / (1000 * 60 * 60 * 24)
+    val minutes = diff / MILLIS_PER_MINUTE
+    val hours = diff / MILLIS_PER_HOUR
+    val days = diff / MILLIS_PER_DAY
 
     return when {
+        minutes < 1 -> "Today • just now"
         minutes < 60 -> "Today • $minutes min ago"
         hours < 24 -> "Today • $hours hour${if (hours > 1) "s" else ""} ago"
         days == 1L -> "Yesterday"

@@ -31,10 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +60,7 @@ fun BuyListingDetailScreen(
     var sellerName by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // Load listing when screen is first composed
     LaunchedEffect(listingId) {
         // Fetch the listing
         val listingResult = listingsRepository.getListing(listingId)
@@ -75,7 +75,6 @@ fun BuyListingDetailScreen(
                 }
             }
         }
-        isLoading = false
     }
 
     Scaffold(
@@ -93,7 +92,7 @@ fun BuyListingDetailScreen(
             )
         }
     ) { paddingValues ->
-        if (isLoading) {
+        if (uiState.isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -102,7 +101,7 @@ fun BuyListingDetailScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (listing == null) {
+        } else if (uiState.listing == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -130,7 +129,7 @@ fun BuyListingDetailScreen(
                         .padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(listing!!.imageUrls) { imageUrl ->
+                    items(uiState.listing!!.imageUrls) { imageUrl ->
                         AsyncImage(
                             model = imageUrl,
                             contentDescription = "Listing image",
@@ -211,7 +210,7 @@ fun BuyListingDetailScreen(
 
                     // Timestamp
                     Text(
-                        text = "Listed ${formatTimestamp(listing!!.createdAt.toDate())}",
+                        text = "Listed ${formatTimestamp(uiState.listing!!.createdAt.toDate())}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -220,7 +219,7 @@ fun BuyListingDetailScreen(
 
                     // Description
                     Text(
-                        text = listing!!.description,
+                        text = uiState.listing!!.description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
