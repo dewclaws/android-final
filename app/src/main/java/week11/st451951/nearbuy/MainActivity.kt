@@ -28,8 +28,14 @@ import week11.st451951.nearbuy.navigation.Screen
 import week11.st451951.nearbuy.ui.components.LocalDrawerState
 import week11.st451951.nearbuy.ui.components.ProfileDrawer
 import week11.st451951.nearbuy.ui.theme.NearBuyTheme
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import week11.st451951.nearbuy.navigation.ScaffoldState
 
 class MainActivity : ComponentActivity() {
+
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -43,6 +49,7 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 val context = LocalContext.current
 
+                val mainScaffoldState = remember { mutableStateOf(ScaffoldState()) }
                 // ###################
                 // AUTH EVENT OBSERVER
                 // ###################
@@ -97,12 +104,16 @@ class MainActivity : ComponentActivity() {
                                 }
                             ) {
                                 MainScaffold(
-                                    navController = navController
+                                    navController = navController,
+                                    scaffoldState = mainScaffoldState.value
                                 ) { modifier ->
                                     NearBuyNavGraph(
                                         navController = navController,
                                         startDestination = startDestination,
-                                        authViewModel = authViewModel
+                                        authViewModel = authViewModel,
+                                        onScaffoldStateChange = { newState ->
+                                            mainScaffoldState.value = newState
+                                        }
                                     )
                                 }
                             }
@@ -111,7 +122,10 @@ class MainActivity : ComponentActivity() {
                         NearBuyNavGraph(
                             navController = navController,
                             startDestination = startDestination,
-                            authViewModel = authViewModel
+                            authViewModel = authViewModel,
+                            onScaffoldStateChange = { newState ->
+                                mainScaffoldState.value = newState
+                            }
                         )
                     }
                 }

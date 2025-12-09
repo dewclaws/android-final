@@ -14,6 +14,7 @@ class UsersRepository {
         return try {
             val user = mapOf(
                 "displayName" to displayName,
+                "username" to email,
                 "email" to email
             )
             usersCollection.document(userId).set(user).await()

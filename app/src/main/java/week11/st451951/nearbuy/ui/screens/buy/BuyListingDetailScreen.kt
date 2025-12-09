@@ -41,8 +41,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import week11.st451951.nearbuy.data.LocationManager
-import week11.st451951.nearbuy.ui.components.LocationWidget
+import week11.st451951.nearbuy.data.Listing
+import week11.st451951.nearbuy.data.ListingsRepository
+import week11.st451951.nearbuy.data.UsersRepository
 import week11.st451951.nearbuy.ui.components.formatTimestamp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,22 +53,25 @@ fun BuyListingDetailScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val viewModel: BuyListingDetailViewModel = remember {
-        BuyListingDetailViewModel(locationManager = LocationManager(context))
-    }
-    val uiState by viewModel.uiState.collectAsState()
+    val listingsRepository = remember { ListingsRepository() }
+    val usersRepository = remember { UsersRepository() }
+
+    var listing by remember { mutableStateOf<Listing?>(null) }
+    var sellerName by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
 
     // Load listing when screen is first composed
     LaunchedEffect(listingId) {
-        viewModel.loadListing(listingId)
-    }
+        // Fetch the listing
+        val listingResult = listingsRepository.getListing(listingId)
+        if (listingResult.isSuccess) {
+            listing = listingResult.getOrNull()
 
-    // Handle events
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is BuyListingDetailEvent.ShowToast -> {
-                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            // Fetch the seller's name
+            listing?.sellerId?.let { sellerId ->
+                val userResult = usersRepository.getUser(sellerId)
+                if (userResult.isSuccess) {
+                    sellerName = userResult.getOrNull()?.displayName
                 }
             }
         }
@@ -156,20 +160,20 @@ fun BuyListingDetailScreen(
                         ) {
                             // Title
                             Text(
-                                text = uiState.listing!!.title,
+                                text = listing!!.title,
                                 style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
                             // Price
                             Text(
-                                text = "$${uiState.listing!!.price.toInt()}",
+                                text = "$${listing!!.price.toInt()}",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
                             // Seller Name
-                            uiState.sellerName?.let { name ->
+                            sellerName?.let { name ->
                                 Text(
                                     text = "For sale by $name",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -180,7 +184,13 @@ fun BuyListingDetailScreen(
 
                         // Contact Seller Button
                         Button(
-                            onClick = { viewModel.contactSeller() },
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    "Contact seller feature coming soon!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
                             shape = RoundedCornerShape(24.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -213,18 +223,6 @@ fun BuyListingDetailScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    // Location Widget
-                    if (uiState.listing!!.location.latitude != 0.0 &&
-                        uiState.listing!!.location.longitude != 0.0) {
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        LocationWidget(
-                            location = uiState.listing!!.location,
-                            distance = uiState.distance,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
 
                     Spacer(modifier = Modifier.height(80.dp))
                 }
