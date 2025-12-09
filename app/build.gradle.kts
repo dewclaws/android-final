@@ -53,7 +53,6 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
 
     // AndroidX Core & Lifecycle
-    implementation(libs.play.services.location)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
